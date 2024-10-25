@@ -1,0 +1,97 @@
+#House Sales in King County, USA 
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.linear_model import LinearRegression,Ridge
+from sklearn.preprocessing import PolynomialFeatures,StandardScaler
+from sklearn.metrics import mean_squared_error,r2_score
+from sklearn.pipeline import Pipeline
+import numpy as np
+from sklearn.model_selection import train_test_split,cross_val_score
+file="D:\\Downloads\\kc_house_data_NaN.csv"
+df =pd.read_csv(file)
+# print(df.head())
+# print(df.dtypes)
+df = df.drop(['Unnamed: 0', 'id'], axis=1)
+
+df["bathrooms"].replace(np.nan,df["bathrooms"].mean(),inplace=True)
+df["bedrooms"].replace(np.nan,df["bedrooms"].mean(),inplace=True)
+# print(df.info())
+# print(df["floors"].value_counts().to_frame())
+# sns.boxplot(x=df["waterfront"],y=df["price"],data=df)
+# # plt.show()
+# sns.regplot(x=df["sqft_above"],y=df["price"],data=df)
+# plt.show()
+# print(df.dtypes)
+corr=df.drop(columns='date').corr()["price"].sort_values()
+# print(corr)
+x=df[["sqft_living"]]
+y=df["price"]
+lm=LinearRegression()
+lm.fit(x,y)
+print('linear: ',lm.score(x,y))
+z=df[["floors", "waterfront","lat" ,"bedrooms" ,"sqft_basement" ,"view" ,"bathrooms","sqft_living15","sqft_above","grade","sqft_living"]]
+lm.fit(z,y)
+print('multiple: ',lm.score(z,y))
+input=[('scale',StandardScaler()),('polynomial',PolynomialFeatures(include_bias=False)),('model',LinearRegression())]
+pipe=Pipeline(input)
+# z=z.astype(float)
+pipe.fit(z,y)
+ypipe=pipe.predict(z)
+print('pipe: ',r2_score(y,ypipe))
+x=df[["floors", "waterfront","lat" ,"bedrooms" ,"sqft_basement" ,"view" ,"bathrooms","sqft_living15","sqft_above","grade","sqft_living"]]
+y=df["price"]
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.15,random_state=1)
+ridgemodel=Ridge(alpha=0.1)
+ridgemodel.fit(x_train,y_train)
+ycap=ridgemodel.predict(x_test)
+print('ridge: ',r2_score(y_test,ycap))
+pr=PolynomialFeatures(degree=2)
+x_train_pr =pr.fit_transform(x_train)
+x_test_pr=pr.fit_transform(x_test)
+ridgemodel.fit(x_train_pr,y_train)
+ycaprp=ridgemodel.predict(x_test_pr)
+print("with poly 2: " ,r2_score(y_test,ycaprp))
+
+import matplotlib.pyplot as plt
+
+# Predictions from different models
+y_pred_linear = lm.predict(z)  # Linear model predictions on multiple features
+y_pred_poly = ypipe            # Polynomial model predictions from pipeline
+y_pred_ridge = ridgemodel.predict(x_test_pr)  # Ridge model predictions with polynomial features on test set
+y_pred_ridgepoly2=ycaprp
+# Plot actual vs. predicted values
+plt.figure(figsize=(18, 6))
+
+# Linear Regression Plot
+plt.subplot(1, 4, 1)
+plt.scatter(y, y_pred_linear, alpha=0.5)
+plt.plot(y, y, color='red', linestyle='--')  # Ideal line where actual == predicted
+plt.title(f"Linear Regression with multiple features\nR2 Score: {r2_score(y, y_pred_linear):.2f}")
+plt.xlabel("Actual Price")
+plt.ylabel("Predicted Price")
+
+# Polynomial Regression Plot
+plt.subplot(1, 4, 2)
+plt.scatter(y, y_pred_poly, alpha=0.5)
+plt.plot(y, y, color='red', linestyle='--')  # Ideal line where actual == predicted
+plt.title(f"Polynomial Regression\nR2 Score: {r2_score(y, y_pred_poly):.2f}")
+plt.xlabel("Actual Price")
+plt.ylabel("Predicted Price")
+
+# Ridge Regression with Polynomial Features Plot
+plt.subplot(1, 4, 3)
+plt.scatter(y_test, y_pred_ridge, alpha=0.5)
+plt.plot(y_test, y_test, color='red', linestyle='-')  # Ideal line where actual == predicted
+plt.title(f"Ridge Regression (Polynomial Features)\nR2 Score: {r2_score(y_test, y_pred_ridge):.2f}")
+plt.xlabel("Actual Price")
+plt.ylabel("Predicted Price")
+# ridge regression with polynomial degree 2
+plt.subplot(1, 4, 4)
+plt.scatter(y_test, y_pred_ridgepoly2, alpha=0.5)
+plt.plot(y_test, y_test, color='red', linestyle='--')  # Ideal line where actual == predicted
+plt.title(f"Ridge Regression (Polynomial Features degree 2)\nR2 Score: {r2_score(y_test, y_pred_ridgepoly2):.2f}")
+plt.xlabel("Actual Price")
+plt.ylabel("Predicted Price")
+plt.tight_layout()
+plt.show()
